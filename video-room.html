@@ -97,33 +97,6 @@
           <span id="spanVideo5" style="display: none;"></span>
         </td>
       </tr>
-      <tr>
-        <td>
-          <video id="friendsVideo6" autoplay></video>
-          <br /><br />
-          <label id="lbVideo6" style="margin-left: 20px">Friend 6</label>
-          <span id="spanVideo6"></span>
-        </td>
-        <td>
-          <video id="friendsVideo7" autoplay></video>
-          <br /><br />
-          <label id="lbVideo7" style="margin-left: 20px">Friend 7</label>
-          <span id="spanVideo7" style="display: none;"></span>
-        </td>
-        <td>
-          <video id="friendsVideo8" autoplay></video>
-          <br /><br />
-          <label id="lbVideo8" style="margin-left: 20px">Friend 8</label>
-          <span id="spanVideo8" style="display: none;"></span>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <video id="friendsVideo9" autoplay></video>
-          <br /><br />
-          <label id="lbVideo9" style="margin-left: 20px">Friend 9</label>
-          <span id="spanVideo9"></span>
-        </td>
     </table>
     <br />
 
@@ -147,7 +120,12 @@
       Get state Cam - Mic
     </button>
     <br />
+    <button class="button-action" id="updateGameData" type="button" class="btn btn-primary btn-lg">
+      Update game data
+    </button>
+    <br />
   </div>
+  <script src="./gameData.js"></script>
   <script src="https://unpkg.com/colyseus.js@^0.14.0/dist/colyseus.js"></script>
   <script>
     ; (async () => {
@@ -162,6 +140,7 @@
       document.querySelector('#createRoomBtn').addEventListener('click', (e) => {
         e.preventDefault();
         const urlCreateRoom = 'https://dev-proxy.gld-lab.link:6789/api/rooms'
+        // const urlCreateRoom = 'http://localhost:3000/api/rooms'
         fetch(urlCreateRoom, {
           method: 'POST',
           headers: {
@@ -178,7 +157,7 @@
               const clientOptions = {
                 ...visitor,
                 roomName: `Room-${data.id}`,
-                roomPassword: 2750,
+                roomPassword: 2209,
                 userToken: userToken,
               }
 
@@ -191,6 +170,7 @@
 
       document.querySelector('#showRoomBtn').addEventListener('click', (e) => {
         const urlListRoom = 'https://dev-proxy.gld-lab.link:6789/api/rooms'
+        // const urlListRoom = 'http://localhost:3000/api/rooms'
         fetch(urlListRoom, {
           method: 'GET',
           headers: {
@@ -216,7 +196,7 @@
                   const clientOptions = {
                     ...visitor,
                     roomName: `Room-${roomId}`,
-                    roomPassword: 2750,
+                    roomPassword: "2209",
                     userToken: userToken,
                   }
 
@@ -237,31 +217,28 @@
         try {
           var room = await client.join(clientOptions.roomName, {
             ...clientOptions,
-            lang: 'en',
-            mirrorId: "124",
-            avatarBorderColor: "#FFF",
-            typeClient: "Quest",
           })
           $("#myLabel").text("ME: " + clientOptions.name)
           $("#myId").text(clientOptions.userId)
           return room;
-        } catch (err) {
-          console.log('Could not join!', err)
-          return
+        } catch (e) {
+          console.log(e.message);
         }
       }
 
       function getColyseusUrl() {
-        const url = "https://dev-proxy.gld-lab.link:2567"
-        const hostname = url.split('/')[2]
-        if (url.startsWith('https')) {
-          return `wss://${hostname}`
-        }
-        return `ws://${hostname}`
+        const url = window.location.href
+        // const hostname = url.split('/')[2]
+        // if (url.startsWith('https')) {
+        //   return `wss://${hostname}`
+        // }
+        // return `ws://${hostname}`
+        return `wss://dev-proxy.gld-lab.link:2567`
       }
 
       async function getVisitorData(payload) {
         const visitor = `https://dev-proxy.gld-lab.link:6789/api/visitors/${payload.id}`;
+        // const visitor = `http://localhost:3000/api/visitors/${payload.id}`;
         const res = await fetch(visitor, {
           method: 'GET',
           headers: {
@@ -303,6 +280,7 @@
         var publishPeerConnection = new RTCPeerConnection(ICE_CONFIGURATION)
         var subscribePeerConnections = []
         var friendIds = Array(NUMBER_FRIENDS).fill('')
+        var myId = room.sessionId
 
         for (let i = 0; i < NUMBER_FRIENDS; i++) {
           const elementId = 'friendsVideo' + (i + 1)
@@ -487,7 +465,7 @@
 
         const sendStateCamMic = () => {
           let stateCamMic = {
-            username: myName,
+            username: 'myName',
             publisherId: myId,
             camera: true,
             micro: false
@@ -508,6 +486,24 @@
           console.log("State Cam - Mic:== ", message);
         }
 
+        const updateGameData = (message) => {
+          const eventGameData = {
+            command:"update",
+            resource: "vr_dome_list/1/vr_object_list/vr_model_list/2",
+            payload: gameData
+          }
+          sendMessage('HANDLE_STATE_GAMEDATA', eventGameData);
+          console.log('data game: ', eventGameData);
+        }
+
+        const getStateGameData = (message) => {
+          console.log("State game data:== ", message);
+        }
+
+        const handleStateGameData = (message) => {
+          console.log("State game data broadcast:== ", message);
+        }
+
         room.onMessage('WEBRTC_SDP_ANSWER', onSdpAnswer)
         room.onMessage('WEBRTC_NEW_PUBLISHER', onNewPublisher)
         room.onMessage('WEBRTC_SDP_OFFER', onSdpOffer)
@@ -519,6 +515,9 @@
         room.onMessage('UPDATE_STATE_CAM_MIC', updateStateCamMic)
         room.onMessage('GET_STATE_CAM_MIC', receiveStateCamMic)
 
+        room.onMessage('GET_STATE_GAMEDATA', getStateGameData)
+        room.onMessage('HANDLE_STATE_GAMEDATA', handleStateGameData)
+
         room.onError((code, message) => {
           console.log(`Room ${room.name} on error: ${code}-${message}`)
         })
@@ -528,6 +527,7 @@
         document.getElementById('resume').onclick = resumeStream
         document.getElementById('stateCamMic').onclick = sendStateCamMic
         document.getElementById('getStateCamMic').onclick = getStateCamMic
+        document.getElementById('updateGameData').onclick = updateGameData
       }
     }
   </script>
